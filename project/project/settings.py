@@ -27,7 +27,6 @@ SECRET_KEY = config('SECRET_KEY', cast=str)
 DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = []
-
 # Application definition
 
 INSTALLED_APPS = [
@@ -40,6 +39,8 @@ INSTALLED_APPS = [
 
     # Пользовательские приложения
     'users.apps.UsersConfig',
+    'products.apps.ProductsConfig',
+    'sales.apps.SalesConfig',
 ]
 
 MIDDLEWARE = [
@@ -78,11 +79,11 @@ WSGI_APPLICATION = 'project.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': config('NAME', cast=str),
-        'USER': config('USER', cast=str),
-        'PASSWORD': config('PASSWORD', cast=str),
-        'HOST': config('HOST', cast=str),
-        'PORT': config('PORT', cast=str),
+        'NAME': config('DB_NAME', cast=str),
+        'USER': config('DB_USER', cast=str),
+        'PASSWORD': config('DB_PASSWORD', cast=str),
+        'HOST': config('DB_HOST', cast=str),
+        'PORT': config('DB_PORT', cast=str),
         'OPTIONS': {
             'charset': 'utf8mb4',
         },
@@ -127,3 +128,6 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 AUTH_USER_MODEL = 'users.User'
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'

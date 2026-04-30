@@ -1,3 +1,88 @@
-from django.db import models
+import django.db.models
 
-# Create your models here.
+
+class Category(django.db.models.Model):
+    name = django.db.models.CharField(
+        max_length=255,
+        db_index=True,
+    )
+    description = django.db.models.TextField()
+
+    def __str__(self):
+        return self.name
+
+
+class Producer(django.db.models.Model):
+    name = django.db.models.CharField(
+        max_length=255,
+        db_index=True,
+    )
+    contact_info = django.db.models.TextField()
+
+    def __str__(self):
+        return self.name
+
+
+class Supplier(django.db.models.Model):
+    name = django.db.models.CharField(
+        max_length=255,
+        db_index=True,
+    )
+    contact_info = django.db.models.TextField()
+    delivery_terms = django.db.models.TextField()
+
+    def __str__(self):
+        return self.name
+
+
+class Warehouse(django.db.models.Model):
+    name = django.db.models.CharField(
+        max_length=255,
+        db_index=True,
+    )
+    address = django.db.models.TextField()
+    contact_info = django.db.models.TextField()
+
+    def __str__(self):
+        return self.name
+
+
+class Product(django.db.models.Model):
+    name = django.db.models.CharField(
+        max_length=255,
+        db_index=True,
+    )
+
+    description = django.db.models.TextField()
+
+    price = django.db.models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+    )
+
+    category = django.db.models.ForeignKey(
+        Category,
+        on_delete=django.db.models.PROTECT,
+        related_name='products',
+    )
+
+    quantity_in_stock = django.db.models.PositiveIntegerField()
+
+    producer = django.db.models.ForeignKey(
+        Producer,
+        on_delete=django.db.models.PROTECT,
+        related_name='products',
+    )
+
+    date_added = django.db.models.DateField(
+        auto_now_add=True,
+    )
+
+    image = django.db.models.ImageField(
+        upload_to='product_images/',
+        blank=True,
+        null=True,
+    )
+
+    def __str__(self):
+        return self.name

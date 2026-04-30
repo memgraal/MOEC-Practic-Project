@@ -15,17 +15,13 @@ class User(
         CLIENT = 'client', 'Клиент'
 
     email = django.db.models.EmailField(unique=True)
-
     type = django.db.models.CharField(
         max_length=20,
         choices=Types.choices,
         default=Types.CLIENT,
     )
-
     is_active = django.db.models.BooleanField(default=True)
-
     is_staff = django.db.models.BooleanField(default=False)
-
     objects =   users.managers.UserManager()
 
     USERNAME_FIELD = 'email'
