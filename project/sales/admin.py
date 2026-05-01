@@ -1,15 +1,19 @@
 import django.contrib.admin
+import django.contrib.messages
+import django.utils.html
 
 from sales.models import (
     Discount,
     Order,
     OrderItem,
+    Transaction,
 )
 
 
 class OrderItemInline(django.contrib.admin.TabularInline):
     model = OrderItem
     extra = 1
+
     autocomplete_fields = (
         'product',
     )
@@ -17,7 +21,7 @@ class OrderItemInline(django.contrib.admin.TabularInline):
     readonly_fields = (
         'discount_percent',
         'final_price',
-        'subtotal',
+        'subtotal_display',
     )
 
     fields = (
@@ -26,15 +30,31 @@ class OrderItemInline(django.contrib.admin.TabularInline):
         'price',
         'discount_percent',
         'final_price',
-        'subtotal',
+        'subtotal_display',
     )
 
-    def subtotal(self, obj):
+    def subtotal_display(self, obj):
         if obj.pk:
             return obj.subtotal
         return '-'
 
-    subtotal.short_description = 'Сумма'
+    subtotal_display.short_description = 'Сумма'
+
+
+@django.contrib.admin.action(description='Отменить выбранные заказы')
+def cancel_orders(modeladmin, request, queryset):
+    count = 0
+
+    for order in queryset:
+        if order.status != Order.Status.CANCELLED:
+            order.mark_as_cancelled()
+            count += 1
+
+    modeladmin.message_user(
+        request,
+        f'Отменено заказов: {count}',
+        django.contrib.messages.SUCCESS,
+    )
 
 
 @django.contrib.admin.register(Order)
@@ -42,8 +62,9 @@ class OrderAdmin(django.contrib.admin.ModelAdmin):
     list_display = (
         'id',
         'client',
-        'status',
+        'colored_status',
         'total_amount',
+        'has_transaction',
         'order_date',
     )
 
@@ -68,6 +89,10 @@ class OrderAdmin(django.contrib.admin.ModelAdmin):
         'order_date',
     )
 
+    actions = (
+        cancel_orders,
+    )
+
     inlines = (
         OrderItemInline,
     )
@@ -83,7 +108,7 @@ class OrderAdmin(django.contrib.admin.ModelAdmin):
             },
         ),
         (
-            'Финансовая информация',
+            'Финансы',
             {
                 'fields': (
                     'total_amount',
@@ -100,6 +125,30 @@ class OrderAdmin(django.contrib.admin.ModelAdmin):
         ),
     )
 
+    def colored_status(self, obj):
+        colors = {
+            Order.Status.NEW: 'gray',
+            Order.Status.PAID: 'green',
+            Order.Status.COMPLETED: 'blue',
+            Order.Status.CANCELLED: 'red',
+        }
+
+        color = colors.get(obj.status, 'black')
+
+        return django.utils.html.format_html(
+            '<b style="color:{}">{}</b>',
+            color,
+            obj.get_status_display(),
+        )
+
+    colored_status.short_description = 'Статус'
+
+    def has_transaction(self, obj):
+        return hasattr(obj, 'transaction')
+
+    has_transaction.boolean = True
+    has_transaction.short_description = 'Оплачен'
+
 
 @django.contrib.admin.register(OrderItem)
 class OrderItemAdmin(django.contrib.admin.ModelAdmin):
@@ -111,11 +160,12 @@ class OrderItemAdmin(django.contrib.admin.ModelAdmin):
         'price',
         'discount_percent',
         'final_price',
-        'subtotal',
+        'subtotal_display',
     )
 
     list_filter = (
         'product',
+        'discount_percent',
     )
 
     search_fields = (
@@ -131,13 +181,72 @@ class OrderItemAdmin(django.contrib.admin.ModelAdmin):
     readonly_fields = (
         'discount_percent',
         'final_price',
-        'subtotal',
+        'subtotal_display',
     )
 
-    def subtotal(self, obj):
+    def subtotal_display(self, obj):
         return obj.subtotal
 
-    subtotal.short_description = 'Сумма'
+    subtotal_display.short_description = 'Сумма'
+
+
+@django.contrib.admin.register(Transaction)
+class TransactionAdmin(django.contrib.admin.ModelAdmin):
+    list_display = (
+        'id',
+        'order',
+        'payment_method',
+        'paid_amount',
+        'transaction_date',
+    )
+
+    list_filter = (
+        'payment_method',
+        'transaction_date',
+    )
+
+    search_fields = (
+        'id',
+        'order__id',
+        'order__client__email',
+    )
+
+    autocomplete_fields = (
+        'order',
+    )
+
+    readonly_fields = (
+        'paid_amount',
+        'transaction_date',
+    )
+
+    fieldsets = (
+        (
+            'Информация об оплате',
+            {
+                'fields': (
+                    'order',
+                    'payment_method',
+                ),
+            },
+        ),
+        (
+            'Финансовая информация',
+            {
+                'fields': (
+                    'paid_amount',
+                ),
+            },
+        ),
+        (
+            'Системная информация',
+            {
+                'fields': (
+                    'transaction_date',
+                ),
+            },
+        ),
+    )
 
 
 @django.contrib.admin.register(Discount)
@@ -153,6 +262,7 @@ class DiscountAdmin(django.contrib.admin.ModelAdmin):
     list_filter = (
         'starting_date',
         'expiring_date',
+        'discount_percent',
     )
 
     search_fields = (
@@ -185,7 +295,7 @@ class DiscountAdmin(django.contrib.admin.ModelAdmin):
             },
         ),
         (
-            'Применимые товары',
+            'Товары',
             {
                 'fields': (
                     'applicable_products',

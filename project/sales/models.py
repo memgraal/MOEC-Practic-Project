@@ -9,8 +9,6 @@ import products.models
 
 
 class Discount(django.db.models.Model):
-    """Скидки / акции на товары"""
-
     name = django.db.models.CharField(
         max_length=255,
         db_index=True,
@@ -40,8 +38,6 @@ class Discount(django.db.models.Model):
 
 
 class Order(django.db.models.Model):
-    """Заказ клиента"""
-
     class Status(django.db.models.TextChoices):
         NEW = 'new', 'Новый'
         PAID = 'paid', 'Оплачен'
@@ -93,13 +89,34 @@ class Order(django.db.models.Model):
 
         return total
 
+    def mark_as_cancelled(self):
+        """
+        Возвращаем товар на склад,
+        если заказ уже был оплачен.
+        """
+
+        if self.status == self.Status.PAID:
+            with django.db.transaction.atomic():
+                for item in self.items.select_related('product'):
+                    product = (
+                        products.models.Product.objects
+                        .select_for_update()
+                        .get(pk=item.product.pk)
+                    )
+
+                    product.quantity_in_stock += item.quantity
+                    product.save(
+                        update_fields=['quantity_in_stock']
+                    )
+
+        self.status = self.Status.CANCELLED
+        self.save(update_fields=['status'])
+
     def __str__(self):
         return f'Заказ #{self.id}'
 
 
 class OrderItem(django.db.models.Model):
-    """Позиция заказа"""
-
     order = django.db.models.ForeignKey(
         Order,
         on_delete=django.db.models.CASCADE,
@@ -117,8 +134,10 @@ class OrderItem(django.db.models.Model):
     )
 
     price = django.db.models.DecimalField(
-        max_digits=10,
+        max_digits=12,
         decimal_places=2,
+        null=True,
+        blank=True,
     )
 
     discount_percent = django.db.models.DecimalField(
@@ -128,17 +147,14 @@ class OrderItem(django.db.models.Model):
     )
 
     final_price = django.db.models.DecimalField(
-        max_digits=10,
+        max_digits=12,
         decimal_places=2,
         default=0,
     )
 
     class Meta:
         db_table = 'order_items'
-        unique_together = (
-            'order',
-            'product',
-        )
+        unique_together = ('order', 'product')
 
     @property
     def subtotal(self):
@@ -163,9 +179,8 @@ class OrderItem(django.db.models.Model):
 
     def save(self, *args, **kwargs):
         """
-        Проверка склада
-        Применение скидки
-        Пересчёт суммы заказа
+        Только проверка наличия.
+        Со склада пока не списываем.
         """
 
         with django.db.transaction.atomic():
@@ -185,13 +200,10 @@ class OrderItem(django.db.models.Model):
 
             if diff > 0 and product.quantity_in_stock < diff:
                 raise ValueError(
-                    f'Недостаточно товара "{product.name}" на складе'
+                    f'Недостаточно товара "{product.name}"'
                 )
 
-            product.quantity_in_stock -= diff
-            product.save(update_fields=['quantity_in_stock'])
-
-            if not self.price:
+            if self.price is None:
                 self.price = product.price
 
             self.discount_percent = self.get_active_discount()
@@ -210,28 +222,104 @@ class OrderItem(django.db.models.Model):
             self.order.calculate_total()
 
     def delete(self, *args, **kwargs):
-        """
-        Возвращаем товар на склад
-        """
+        order = self.order
 
-        with django.db.transaction.atomic():
-            product = (
-                products.models.Product.objects
-                .select_for_update()
-                .get(pk=self.product.pk)
-            )
+        super().delete(*args, **kwargs)
 
-            product.quantity_in_stock += self.quantity
-            product.save(update_fields=['quantity_in_stock'])
-
-            order = self.order
-
-            super().delete(*args, **kwargs)
-
-            order.calculate_total()
+        order.calculate_total()
 
     def __str__(self):
         return (
-            f'{self.product.name} × {self.quantity} '
-            f'= {self.subtotal}'
+            f'{self.product.name} × '
+            f'{self.quantity} = '
+            f'{self.subtotal}'
+        )
+
+
+class Transaction(django.db.models.Model):
+    class PaymentMethod(django.db.models.TextChoices):
+        CARD = 'Card', 'Оплата картой'
+        PAYPAL = 'PayPal', 'PayPal'
+        CASH = 'Cash', 'Наличные'
+        SBP = 'SBP', 'СБП'
+
+    payment_method = django.db.models.CharField(
+        max_length=20,
+        choices=PaymentMethod.choices,
+        db_index=True,
+    )
+
+    order = django.db.models.OneToOneField(
+        Order,
+        on_delete=django.db.models.CASCADE,
+        related_name='transaction',
+    )
+
+    transaction_date = django.db.models.DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+    )
+
+    paid_amount = django.db.models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        editable=False,
+        null=True,
+    )
+
+    class Meta:
+        db_table = 'transactions'
+
+    def save(self, *args, **kwargs):
+        """
+        Оплата прошла -> списываем товар.
+        """
+
+        is_new = self.pk is None
+
+        with django.db.transaction.atomic():
+            if is_new:
+                order = (
+                    Order.objects
+                    .select_for_update()
+                    .get(pk=self.order.pk)
+                )
+
+                if order.status == Order.Status.PAID:
+                    raise ValueError(
+                        'Заказ уже оплачен'
+                    )
+
+                for item in order.items.select_related('product'):
+                    product = (
+                        products.models.Product.objects
+                        .select_for_update()
+                        .get(pk=item.product.pk)
+                    )
+
+                    if product.quantity_in_stock < item.quantity:
+                        raise ValueError(
+                            f'Недостаточно товара "{product.name}"'
+                        )
+
+                    product.quantity_in_stock -= item.quantity
+                    product.save(
+                        update_fields=['quantity_in_stock']
+                    )
+
+                order.status = Order.Status.PAID
+                order.save(update_fields=['status'])
+
+                self.paid_amount = order.total_amount
+
+            super().save(*args, **kwargs)
+
+    @property
+    def price(self):
+        return self.paid_amount
+
+    def __str__(self):
+        return (
+            f'Транзакция #{self.id} '
+            f'на сумму {self.paid_amount}'
         )
