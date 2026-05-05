@@ -43,15 +43,17 @@ INSTALLED_APPS = [
     'products.apps.ProductsConfig',
     'sales.apps.SalesConfig',
     'core.apps.CoreConfig',
+
     'django_crontab', # для периодических задач
 
     'rest_framework', # Для создание API входа и регистрации
+    'rest_framework_simplejwt.token_blacklist',
     'rest_framework_simplejwt',
 ]
 
 REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
 }
 
