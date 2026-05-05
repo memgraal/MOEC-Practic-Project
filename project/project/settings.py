@@ -29,6 +29,7 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 ALLOWED_HOSTS = []
 # Application definition
 
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -41,7 +42,14 @@ INSTALLED_APPS = [
     'users.apps.UsersConfig',
     'products.apps.ProductsConfig',
     'sales.apps.SalesConfig',
+    'core.apps.CoreConfig',
+    'django_crontab', # для периодических задач
 ]
+
+CRONJOBS = [
+    ('0 3 * * *', 'core.cron.db_backup'), # бля, не забыть рассказать что бэкап на уровне системы, а не джанги
+]
+# python manage.py crontab add
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
