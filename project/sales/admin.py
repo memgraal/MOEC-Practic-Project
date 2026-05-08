@@ -2,6 +2,10 @@ import django.contrib.admin
 import django.contrib.messages
 import django.utils.html
 
+from core.models import AuditLog
+from core.utils import write_audit_log
+from core.mixins import AuditAdminMixin
+
 from sales.models import (
     Discount,
     Order,
@@ -15,78 +19,88 @@ class OrderItemInline(django.contrib.admin.TabularInline):
     extra = 1
 
     autocomplete_fields = (
-        'product',
+        "product",
     )
 
     readonly_fields = (
-        'discount_percent',
-        'final_price',
-        'subtotal_display',
+        "discount_percent",
+        "final_price",
+        "subtotal_display",
     )
 
     fields = (
-        'product',
-        'quantity',
-        'price',
-        'discount_percent',
-        'final_price',
-        'subtotal_display',
+        "product",
+        "quantity",
+        "price",
+        "discount_percent",
+        "final_price",
+        "subtotal_display",
     )
 
     def subtotal_display(self, obj):
         if obj.pk:
             return obj.subtotal
-        return '-'
+        return "-"
 
-    subtotal_display.short_description = 'Сумма'
+    subtotal_display.short_description = "Сумма"
 
 
-@django.contrib.admin.action(description='Отменить выбранные заказы')
+@django.contrib.admin.action(description="Отменить выбранные заказы")
 def cancel_orders(modeladmin, request, queryset):
     count = 0
 
     for order in queryset:
         if order.status != Order.Status.CANCELLED:
             order.mark_as_cancelled()
+
+            write_audit_log(
+                request=request,
+                action=AuditLog.Actions.UPDATE,
+                model_name="Order",
+                object_id=order.pk,
+            )
+
             count += 1
 
     modeladmin.message_user(
         request,
-        f'Отменено заказов: {count}',
+        f"Отменено заказов: {count}",
         django.contrib.messages.SUCCESS,
     )
 
 
 @django.contrib.admin.register(Order)
-class OrderAdmin(django.contrib.admin.ModelAdmin):
+class OrderAdmin(AuditAdminMixin, django.contrib.admin.ModelAdmin):
+    model_name = "Order"
+
     list_display = (
-        'id',
-        'client',
-        'colored_status',
-        'total_amount',
-        'has_transaction',
-        'order_date',
+        "id",
+        "client",
+        "colored_status",
+        "total_amount",
+        "has_transaction",
+        "order_date",
     )
 
     list_filter = (
-        'status',
-        'order_date',
+        "status",
+        "order_date",
     )
 
     search_fields = (
-        'id',
-        'client__email',
-        'client__name',
-        'client__surname',
+        "id",
+        "client__email",
+        "client__name",
+        "client__surname",
     )
 
     autocomplete_fields = (
-        'client',
+        "client",
     )
 
     readonly_fields = (
-        'total_amount',
-        'order_date',
+        "total_amount",
+        "order_date",
     )
 
     actions = (
@@ -99,27 +113,27 @@ class OrderAdmin(django.contrib.admin.ModelAdmin):
 
     fieldsets = (
         (
-            'Информация о заказе',
+            "Информация о заказе",
             {
-                'fields': (
-                    'client',
-                    'status',
+                "fields": (
+                    "client",
+                    "status",
                 ),
             },
         ),
         (
-            'Финансы',
+            "Финансы",
             {
-                'fields': (
-                    'total_amount',
+                "fields": (
+                    "total_amount",
                 ),
             },
         ),
         (
-            'Системная информация',
+            "Системная информация",
             {
-                'fields': (
-                    'order_date',
+                "fields": (
+                    "order_date",
                 ),
             },
         ),
@@ -127,13 +141,13 @@ class OrderAdmin(django.contrib.admin.ModelAdmin):
 
     def colored_status(self, obj):
         colors = {
-            Order.Status.NEW: 'gray',
-            Order.Status.PAID: 'green',
-            Order.Status.COMPLETED: 'blue',
-            Order.Status.CANCELLED: 'red',
+            Order.Status.NEW: "gray",
+            Order.Status.PAID: "green",
+            Order.Status.COMPLETED: "blue",
+            Order.Status.CANCELLED: "red",
         }
 
-        color = colors.get(obj.status, 'black')
+        color = colors.get(obj.status, "black")
 
         return django.utils.html.format_html(
             '<b style="color:{}">{}</b>',
@@ -141,108 +155,112 @@ class OrderAdmin(django.contrib.admin.ModelAdmin):
             obj.get_status_display(),
         )
 
-    colored_status.short_description = 'Статус'
+    colored_status.short_description = "Статус"
 
     def has_transaction(self, obj):
-        return hasattr(obj, 'transaction')
+        return hasattr(obj, "transaction")
 
     has_transaction.boolean = True
-    has_transaction.short_description = 'Оплачен'
+    has_transaction.short_description = "Оплачен"
 
 
 @django.contrib.admin.register(OrderItem)
-class OrderItemAdmin(django.contrib.admin.ModelAdmin):
+class OrderItemAdmin(AuditAdminMixin, django.contrib.admin.ModelAdmin):
+    model_name = "OrderItem"
+
     list_display = (
-        'id',
-        'order',
-        'product',
-        'quantity',
-        'price',
-        'discount_percent',
-        'final_price',
-        'subtotal_display',
+        "id",
+        "order",
+        "product",
+        "quantity",
+        "price",
+        "discount_percent",
+        "final_price",
+        "subtotal_display",
     )
 
     list_filter = (
-        'product',
-        'discount_percent',
+        "product",
+        "discount_percent",
     )
 
     search_fields = (
-        'order__id',
-        'product__name',
+        "order__id",
+        "product__name",
     )
 
     autocomplete_fields = (
-        'order',
-        'product',
+        "order",
+        "product",
     )
 
     readonly_fields = (
-        'discount_percent',
-        'final_price',
-        'subtotal_display',
+        "discount_percent",
+        "final_price",
+        "subtotal_display",
     )
 
     def subtotal_display(self, obj):
         return obj.subtotal
 
-    subtotal_display.short_description = 'Сумма'
+    subtotal_display.short_description = "Сумма"
 
 
 @django.contrib.admin.register(Transaction)
-class TransactionAdmin(django.contrib.admin.ModelAdmin):
+class TransactionAdmin(AuditAdminMixin, django.contrib.admin.ModelAdmin):
+    model_name = "Transaction"
+
     list_display = (
-        'id',
-        'order',
-        'payment_method',
-        'paid_amount',
-        'transaction_date',
+        "id",
+        "order",
+        "payment_method",
+        "paid_amount",
+        "transaction_date",
     )
 
     list_filter = (
-        'payment_method',
-        'transaction_date',
+        "payment_method",
+        "transaction_date",
     )
 
     search_fields = (
-        'id',
-        'order__id',
-        'order__client__email',
+        "id",
+        "order__id",
+        "order__client__email",
     )
 
     autocomplete_fields = (
-        'order',
+        "order",
     )
 
     readonly_fields = (
-        'paid_amount',
-        'transaction_date',
+        "paid_amount",
+        "transaction_date",
     )
 
     fieldsets = (
         (
-            'Информация об оплате',
+            "Информация об оплате",
             {
-                'fields': (
-                    'order',
-                    'payment_method',
+                "fields": (
+                    "order",
+                    "payment_method",
                 ),
             },
         ),
         (
-            'Финансовая информация',
+            "Финансовая информация",
             {
-                'fields': (
-                    'paid_amount',
+                "fields": (
+                    "paid_amount",
                 ),
             },
         ),
         (
-            'Системная информация',
+            "Системная информация",
             {
-                'fields': (
-                    'transaction_date',
+                "fields": (
+                    "transaction_date",
                 ),
             },
         ),
@@ -250,55 +268,57 @@ class TransactionAdmin(django.contrib.admin.ModelAdmin):
 
 
 @django.contrib.admin.register(Discount)
-class DiscountAdmin(django.contrib.admin.ModelAdmin):
+class DiscountAdmin(AuditAdminMixin, django.contrib.admin.ModelAdmin):
+    model_name = "Discount"
+
     list_display = (
-        'id',
-        'name',
-        'discount_percent',
-        'starting_date',
-        'expiring_date',
+        "id",
+        "name",
+        "discount_percent",
+        "starting_date",
+        "expiring_date",
     )
 
     list_filter = (
-        'starting_date',
-        'expiring_date',
-        'discount_percent',
+        "starting_date",
+        "expiring_date",
+        "discount_percent",
     )
 
     search_fields = (
-        'name',
-        'description',
+        "name",
+        "description",
     )
 
     filter_horizontal = (
-        'applicable_products',
+        "applicable_products",
     )
 
     fieldsets = (
         (
-            'Основная информация',
+            "Основная информация",
             {
-                'fields': (
-                    'name',
-                    'description',
-                    'discount_percent',
+                "fields": (
+                    "name",
+                    "description",
+                    "discount_percent",
                 ),
             },
         ),
         (
-            'Срок действия',
+            "Срок действия",
             {
-                'fields': (
-                    'starting_date',
-                    'expiring_date',
+                "fields": (
+                    "starting_date",
+                    "expiring_date",
                 ),
             },
         ),
         (
-            'Товары',
+            "Товары",
             {
-                'fields': (
-                    'applicable_products',
+                "fields": (
+                    "applicable_products",
                 ),
             },
         ),

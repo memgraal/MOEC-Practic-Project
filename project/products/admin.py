@@ -1,5 +1,7 @@
 import django.contrib.admin
 
+from core.mixins import AuditAdminMixin
+
 from products.models import (
     Category,
     Producer,
@@ -8,186 +10,200 @@ from products.models import (
     Product,
 )
 
-
 @django.contrib.admin.register(Category)
-class CategoryAdmin(django.contrib.admin.ModelAdmin):
+class CategoryAdmin(AuditAdminMixin, django.contrib.admin.ModelAdmin):
+    model_name = "Category"
+
     list_display = (
-        'id',
-        'name',
-        'description_short',
+        "id",
+        "name",
+        "description_short",
     )
 
     search_fields = (
-        'name',
-        'description',
+        "name",
+        "description",
     )
 
     ordering = (
-        'id',
+        "id",
     )
 
     def description_short(self, obj):
         return obj.description[:50]
 
-    description_short.short_description = 'Описание'
+    description_short.short_description = "Описание"
 
 
 @django.contrib.admin.register(Producer)
-class ProducerAdmin(django.contrib.admin.ModelAdmin):
+class ProducerAdmin(AuditAdminMixin, django.contrib.admin.ModelAdmin):
+    model_name = "Producer"
+
     list_display = (
-        'id',
-        'name',
-        'contact_short',
+        "id",
+        "name",
+        "contact_short",
     )
 
     search_fields = (
-        'name',
-        'contact_info',
+        "name",
+        "contact_info",
     )
 
     ordering = (
-        'id',
+        "id",
     )
 
     def contact_short(self, obj):
         return obj.contact_info[:50]
 
-    contact_short.short_description = 'Контакты'
+    contact_short.short_description = "Контакты"
 
 
 @django.contrib.admin.register(Supplier)
-class SupplierAdmin(django.contrib.admin.ModelAdmin):
+class SupplierAdmin(AuditAdminMixin, django.contrib.admin.ModelAdmin):
+    model_name = "Supplier"
+
     list_display = (
-        'id',
-        'name',
-        'contact_short',
-        'delivery_short',
+        "id",
+        "name",
+        "contact_short",
+        "delivery_short",
     )
 
     search_fields = (
-        'name',
-        'contact_info',
-        'delivery_terms',
+        "name",
+        "contact_info",
+        "delivery_terms",
     )
 
     ordering = (
-        'id',
+        "id",
     )
 
     def contact_short(self, obj):
         return obj.contact_info[:50]
 
-    contact_short.short_description = 'Контакты'
+    contact_short.short_description = "Контакты"
 
     def delivery_short(self, obj):
         return obj.delivery_terms[:50]
 
-    delivery_short.short_description = 'Условия поставки'
+    delivery_short.short_description = "Условия поставки"
 
 
 @django.contrib.admin.register(Warehouse)
-class WarehouseAdmin(django.contrib.admin.ModelAdmin):
+class WarehouseAdmin(AuditAdminMixin, django.contrib.admin.ModelAdmin):
+    model_name = "Warehouse"
+
     list_display = (
-        'id',
-        'name',
-        'address_short',
-        'contact_short',
+        "id",
+        "name",
+        "address_short",
+        "contact_short",
     )
 
     search_fields = (
-        'name',
-        'address',
-        'contact_info',
+        "name",
+        "address",
+        "contact_info",
     )
 
     ordering = (
-        'id',
+        "id",
     )
 
     def address_short(self, obj):
         return obj.address[:50]
 
-    address_short.short_description = 'Адрес'
+    address_short.short_description = "Адрес"
 
     def contact_short(self, obj):
         return obj.contact_info[:50]
 
-    contact_short.short_description = 'Контакты'
+    contact_short.short_description = "Контакты"
 
 
 @django.contrib.admin.register(Product)
-class ProductAdmin(django.contrib.admin.ModelAdmin):
+class ProductAdmin(AuditAdminMixin, django.contrib.admin.ModelAdmin):
+    model_name = "Product"
+
     list_display = (
-        'id',
-        'name',
-        'category',
-        'producer',
-        'price',
-        'quantity_in_stock',
-        'date_added',
+        "id",
+        "name",
+        "category",
+        "producer",
+        "warehouse",
+        "price",
+        "quantity_in_stock",
+        "date_added",
     )
 
     list_filter = (
-        'category',
-        'producer',
-        'date_added',
+        "category",
+        "producer",
+        "warehouse",
+        "date_added",
     )
 
     search_fields = (
-        'name',
-        'description',
-        'category__name',
-        'producer__name',
+        "name",
+        "description",
+        "category__name",
+        "producer__name",
+        "warehouse__name",
     )
 
     ordering = (
-        '-date_added',
-        'name',
+        "-date_added",
+        "name",
     )
 
     autocomplete_fields = (
-        'category',
-        'producer',
+        "category",
+        "producer",
+        "warehouse",
     )
 
     readonly_fields = (
-        'date_added',
+        "date_added",
     )
 
     fieldsets = (
         (
-            'Основная информация',
+            "Основная информация",
             {
-                'fields': (
-                    'name',
-                    'description',
-                    'image',
+                "fields": (
+                    "name",
+                    "description",
+                    "image",
                 ),
             },
         ),
         (
-            'Категория и производитель',
+            "Категория и производитель",
             {
-                'fields': (
-                    'category',
-                    'producer',
+                "fields": (
+                    "category",
+                    "producer",
                 ),
             },
         ),
         (
-            'Стоимость и склад',
+            "Стоимость и склад",
             {
-                'fields': (
-                    'price',
-                    'quantity_in_stock',
+                "fields": (
+                    "price",
+                    "quantity_in_stock",
+                    "warehouse",
                 ),
             },
         ),
         (
-            'Системная информация',
+            "Системная информация",
             {
-                'fields': (
-                    'date_added',
+                "fields": (
+                    "date_added",
                 ),
             },
         ),

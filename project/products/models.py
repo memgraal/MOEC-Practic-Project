@@ -72,6 +72,14 @@ class Product(django.db.models.Model):
         Producer,
         on_delete=django.db.models.PROTECT,
         related_name='products',
+        null=False,
+    )
+
+    warehouse = django.db.models.ForeignKey(
+        Warehouse,
+        on_delete=django.db.models.CASCADE,
+        related_name='products',
+        null=False,
     )
 
     date_added = django.db.models.DateField(

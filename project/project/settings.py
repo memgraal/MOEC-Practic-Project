@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 '''
 
+import os
 from pathlib import Path
 
 from decouple import config
@@ -29,6 +30,42 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 ALLOWED_HOSTS = []
 # Application definition
 
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+
+    "formatters": {
+        "standard": {
+            "format": "[{asctime}] {levelname} {name}: {message}",
+            "style": "{",
+        },
+    },
+
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "standard",
+        },
+        "file": {
+            "class": "logging.FileHandler",
+            "filename": "logs.log",
+            "formatter": "standard",
+        },
+    },
+
+    "root": {
+        "handlers": ["file"],
+        "level": "DEBUG",
+    },
+
+    "loggers": {
+        "django": {  # 👈 важно
+            "handlers": ["file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -104,9 +141,19 @@ DATABASES = {
         'PASSWORD': config('DB_PASSWORD', cast=str),
         'HOST': config('DB_HOST', cast=str),
         'PORT': config('DB_PORT', cast=str),
+
+        # Уровни изоляции
+        # Уровень	        Что защищает
+        # READ UNCOMMITTED	почти ничего
+        # READ COMMITTED	нет грязных чтений
+        # REPEATABLE READ	данные не меняются внутри транзакции
+        # SERIALIZABLE	    максимально строго
+
         'OPTIONS': {
             'charset': 'utf8mb4',
+            'init_command': 'SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED',
         },
+        
     }
 }
 
