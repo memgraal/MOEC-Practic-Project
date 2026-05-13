@@ -23,7 +23,8 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', django.contrib.admin.site.urls),
-    path('api/', include('users.urls')) # URL для API входа и регистрации
+    path('api/', include('users.urls')), # URL для API входа и регистрации
+    path("", include("django_prometheus.urls")),
 ]
 
 if settings.DEBUG:

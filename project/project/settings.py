@@ -10,7 +10,6 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 '''
 
-import os
 from pathlib import Path
 
 from decouple import config
@@ -22,6 +21,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 # SECURITY WARNING: keep the secret key used in production secret!
+
+METRICS_URL = config('PROM_URL', cast=str)
+
 SECRET_KEY = config('SECRET_KEY', cast=str)
 
 # SECURITY WARNING: don't run with debug turned on in production!
@@ -80,12 +82,14 @@ INSTALLED_APPS = [
     'products.apps.ProductsConfig',
     'sales.apps.SalesConfig',
     'core.apps.CoreConfig',
+    'performance.apps.PerformanceConfig',
 
     'django_crontab', # для периодических задач
 
     'rest_framework', # Для создание API входа и регистрации
     'rest_framework_simplejwt.token_blacklist',
     'rest_framework_simplejwt',
+    'django_prometheus', # для мониторинга
 ]
 
 REST_FRAMEWORK = {
@@ -94,13 +98,17 @@ REST_FRAMEWORK = {
     ),
 }
 
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
 # Core/cron.py
 CRONJOBS = [
     ('0 3 * * *', 'core.cron.db_backup'), # бля, не забыть рассказать что бэкап на уровне системы, а не джанги
+    ('*/5 * * * *', 'core.cron.collect_metrics'),
 ]
 # python manage.py crontab add
 
 MIDDLEWARE = [
+    "django_prometheus.middleware.PrometheusBeforeMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -108,6 +116,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
 ROOT_URLCONF = 'project.urls'
