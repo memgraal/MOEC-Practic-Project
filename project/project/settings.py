@@ -90,6 +90,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt.token_blacklist',
     'rest_framework_simplejwt',
     'django_prometheus', # для мониторинга
+    'django_extensions', # для ER
 ]
 
 REST_FRAMEWORK = {
